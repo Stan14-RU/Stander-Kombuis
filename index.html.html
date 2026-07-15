@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stander Kombuis</title>
+
+<!--
+=====================================================================
+  SETUP — read this before publishing
+=====================================================================
+  Right now this page is running on ONE trial recipe, hardcoded below
+  in the SEED_RECIPES array, so you can click around before wiring up
+  the real database.
+
+  When you're ready to go live, replace the trial data with a live
+  Google Sheet:
+
+  1. Make a Google Sheet called "Stander Kombuis" with two tabs:
+
+     TAB 1 — "Recipes", header row exactly:
+     Name | SourceURL | SourceType | ImageURL | DateAdded | Cuisine |
+     DishType | MealType | MainProtein | PrepTime | CookTime | TimeNote |
+     Ingredients | Instructions | Notes
+
+     - MealType must be one of: Breakfast, Lunch, Dinner, Snack, Dessert,
+       Baked Goods — each one shows a matching category icon on the tile.
+     - PrepTime / CookTime: plain numbers, in minutes (shown on the tile
+       as a combined total, e.g. "25 min")
+     - Ingredients: separate items with a semicolon, e.g.
+       "2 cups flour; 1/2 tsp salt; 3/4 cup milk"
+     - Instructions: separate steps with a pipe character "|", e.g.
+       "Melt the butter into the milk.|Combine everything in a bowl.|..."
+     - TimeNote is just free text shown on the recipe page, e.g.
+       "Ready in about 45 minutes (30 min resting)"
+
+     TAB 2 — "MealPlan", header row exactly:
+     Day | RecipeName
+
+  2. File > Share > Publish to web, one tab at a time, format CSV.
+     Paste both resulting links into CONFIG below, and set
+     USE_LIVE_SHEET to true.
+
+  3. Upload this file (as "index.html") to a GitHub Pages repo (or any
+     static host). No build step, nothing to install, ever.
+=====================================================================
+-->
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --cream: #F6F4EC;
+    --cream-deep: #EDEADD;
+    --card: #FFFFFF;
+    --ink: #3A3A32;
+    --ink-soft: #8C9683;
+    --sage: #7C9473;
+    --sage-deep: #5C7351;
+    --sage-pale: #EAF0E4;
+    --line: rgba(58,58,50,0.08);
+    --icon-stroke: #9b90ab;
+    --icon-panel: #e7ece1;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background: var(--cream); color: var(--ink); font-family:'Nunito', sans-serif; }
+  .app { max-width: 720px; margin: 0 auto; padding: 28px 18px 60px; }
+
+  .brand { font-family:'Baloo 2', sans-serif; font-size: 32px; color: var(--sage-deep); margin:0; }
+  .brand small { display:block; font-family:'Nunito', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color: var(--ink-soft); margin-top:2px; }
+
+  .tabbar { display:flex; gap:6px; background: var(--cream-deep); border-radius:999px; padding:5px; margin:22px 0; overflow-x:auto; }
+  .tabbtn { font-family:'Nunito', sans-serif; font-weight:800; font-size:13px; padding:10px 18px; border-radius:999px; border:none; background:transparent; color: var(--ink-soft); white-space:nowrap; cursor:pointer; }
+  .tabbtn.active { background: var(--sage); color:#fff; }
+
+  .toolbar { display:flex; gap:8px; margin-bottom: 16px; }
+  input, select { font-family:'Nunito', sans-serif; font-size:14px; border:none; background: var(--cream-deep); border-radius:14px; padding:11px 15px; color: var(--ink); }
+  input:focus, select:focus { outline: 2px solid var(--sage); }
+  .search-input { flex:1; }
+  .filter-rail { display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 18px; }
+  .filter-select { min-width:130px; }
+
+  .result-count { font-family:'Nunito',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color: var(--ink-soft); margin: 4px 0 14px; }
+
+  .btn { font-family:'Nunito', sans-serif; font-weight:800; font-size:13px; border:none; border-radius:999px; padding:12px 22px; cursor:pointer; }
+  .btn-primary { background: var(--sage); color:#fff; }
+  .btn-ghost { background: var(--cream-deep); color: var(--sage-deep); }
+  .btn-sm { padding:9px 16px; font-size:12px; }
+  .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .rgrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap:14px; }
+  .rcard { text-align:left; background: var(--card); border-radius:20px; padding:0; cursor:pointer; overflow:hidden; box-shadow: 0 4px 16px rgba(58,58,50,0.07); border:none; }
+  .rcard:hover { box-shadow: 0 6px 20px rgba(58,58,50,0.12); }
+  .rcard-image { height: 110px; background: var(--icon-panel); display:flex; align-items:center; justify-content:center; color: var(--icon-stroke); }
+  .rcard-image img { width:100%; height:100%; object-fit:cover; }
+  .rcard-image svg { width:56px; height:56px; }
+  .rcard-body { padding: 14px 16px 16px; }
+  .rcard-cuisine { font-family:'Nunito',sans-serif; font-weight:800; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color: var(--ink-soft); }
+  .rcard-title { font-family:'Baloo 2', sans-serif; font-size:18px; margin: 4px 0 0; line-height:1.25; color: var(--ink); }
+  .rcard-meta { font-family:'Nunito',sans-serif; font-weight:700; font-size:12px; color: var(--ink-soft); margin-top:6px; }
+
+  .empty-state { text-align:center; padding:56px 20px; color: var(--ink-soft); }
+  .empty-mark { font-size:22px; color: var(--sage); margin-bottom:8px; }
+  .empty-state h3 { font-family:'Baloo 2', sans-serif; color: var(--ink); margin:0 0 6px; font-size:19px; }
+  .muted { color: var(--ink-soft); font-size:13px; }
+
+  .modal-overlay { position:fixed; inset:0; background: rgba(58,58,50,0.5); display:flex; align-items:center; justify-content:center; padding:18px; z-index:100; }
+  .modal { background: var(--card); max-width: 600px; width:100%; max-height:88vh; overflow-y:auto; border-radius: 24px; position:relative; padding: 30px; }
+  .modal-close { position:absolute; top:16px; right:18px; background: var(--cream-deep); border:none; width:32px; height:32px; border-radius:50%; font-size:20px; cursor:pointer; color: var(--ink-soft); line-height:1; }
+  .modal-cuisine { font-family:'Nunito',sans-serif; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color: var(--sage-deep); }
+  .modal h2 { font-family:'Baloo 2', sans-serif; font-size: 28px; margin: 4px 0 6px; }
+  .modal-meta { font-size:13px; color: var(--ink-soft); margin-bottom: 18px; }
+  .modal h4 { font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color: var(--sage-deep); margin: 22px 0 10px; }
+  .modal h4:first-of-type { margin-top:0; }
+  .ingredient-list, .steps-list { margin:0; padding-left: 20px; font-size:15px; line-height:1.85; }
+  .steps-list li { margin-bottom: 6px; }
+  .source-link { font-size:13px; color: var(--sage-deep); font-weight:700; }
+
+  .section-intro { margin-bottom: 18px; }
+  .section-intro h2 { font-family:'Baloo 2', sans-serif; font-size:24px; margin:0 0 6px; }
+
+  .chip-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { font-family:'Nunito',sans-serif; font-weight:800; font-size:12px; padding:9px 16px; border-radius:999px; border:none; background: var(--cream-deep); color: var(--sage-deep); cursor:pointer; }
+  .chip-active { background: var(--sage); color:#fff; }
+  .match-note { font-family:'Nunito',sans-serif; font-weight:700; font-size:11px; color: var(--sage-deep); margin: 8px 4px 0; }
+
+  .planner-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
+  .day-card { background: var(--card); border-radius:16px; padding:14px; box-shadow: 0 3px 12px rgba(58,58,50,0.06); }
+  .day-name { font-family:'Baloo 2', sans-serif; font-weight:600; font-size:15px; margin-bottom:4px; }
+
+  .random-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px; }
+  .random-stage { background: var(--card); border-radius:20px; padding:44px 20px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px; min-height:140px; justify-content:center; box-shadow: 0 4px 16px rgba(58,58,50,0.06); }
+  .random-name { font-family:'Baloo 2', sans-serif; font-size:26px; }
+
+  .setup-notice { background: var(--card); border-radius:18px; padding:18px; font-family:'Nunito',sans-serif; font-size:13px; line-height:1.7; color: var(--ink-soft); }
+
+  @media (max-width:520px) { .modal { padding: 22px; } .brand { font-size:27px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1 class="brand">Stander Kombuis</h1>
+  <small>Recipe box &amp; weekly planner</small>
+  <div class="tabbar" id="tabs"></div>
+  <div id="main"><p class="muted">Loading the vault…</p></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIG
+===================================================================== */
+const USE_LIVE_SHEET = true; // flip to true once your Google Sheet is published
+const CONFIG = {
+  RECIPES_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXW5Bt82y0sETjScjeVY8E0uJc5cZ9KnSCpd3c7TMe4SphQoymcKvrQjlnm0ySDw/pub?gid=173292479&single=true&output=csv",
+  MEALPLAN_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRXW5Bt82y0sETjScjeVY8E0uJc5cZ9KnSCpd3c7TMe4SphQoymcKvrQjlnm0ySDw/pub?gid=2011463570&single=true&output=csv"
+};
+
+/* Trial data so you can click around before the real sheet is wired up. */
+const SEED_RECIPES = [
+  {
+    Name: "Easy Soft Flatbread (No Yeast)",
+    SourceURL: "https://www.recipetineats.com/easy-soft-flatbread-yeast/",
+    SourceType: "Website",
+    ImageURL: "",
+    DateAdded: "2026-07-14",
+    Cuisine: "Greek",
+    DishType: "Bread",
+    MealType: "Baked Goods",
+    MainProtein: "Vegetarian",
+    PrepTime: 15,
+    CookTime: 10,
+    TimeNote: "About 45 minutes in total, including 30 minutes resting",
+    Ingredients: "2 cups plain flour, plus a little extra for dusting; 1/2 tsp salt; 3½ tbsp (50g) unsalted butter; 3/4 cup milk",
+    Instructions: "Gently melt the butter into the milk on the stove or in the microwave.|Combine the flour, salt, and the warm milk mixture in a bowl.|Turn out onto a floured surface and knead for a couple of minutes until smooth — it only needs a light knead. Add a little extra flour if it feels sticky.|Wrap the dough and rest at room temperature for about 30 minutes.|Divide into 6 pieces, roll each into a ball, then roll out into rounds about 20cm across and 2-3mm thick.|Heat a non-stick pan over high heat with no oil.|Cook one flatbread at a time for about 1-1.5 minutes until it puffs up with golden patches underneath, then flip and cook the other side for 45 seconds to a minute.|Stack the cooked flatbreads under a tea towel as you go — the trapped steam keeps them soft.|Optional: brush with a little melted butter or olive oil before serving.",
+    Notes: "Trial recipe — added to test the new design."
+  }
+];
+
+const CUISINES = ["Italian","Greek","Chinese","Mexican","Indian","Thai","Japanese","Middle Eastern","American","South African","Other"];
+const PROTEINS = ["Chicken","Beef","Pork","Fish","Seafood","Vegetarian","Vegan","Egg","Lamb","Other"];
+const DISH_TYPES = ["Pasta","Dumplings","Rice Dish","Stir Fry","Soup","Curry","Salad","Sandwich","Bake","Bowl","Bread","Other"];
+const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Snack","Dessert","Baked Goods"];
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+function esc(s){ return (s||"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function splitSemis(s){ return (s||"").split(";").map(x=>x.trim()).filter(Boolean); }
+function splitPipes(s){ return (s||"").split("|").map(x=>x.trim()).filter(Boolean); }
+function fmtDate(s){ if(!s) return ""; const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+
+let RECIPES = [];
+let MEALPLAN = {};
+let currentTab = "vault";
+
+const TABS = [
+  { id:"vault", label:"The Vault" },
+  { id:"match", label:"What Can I Cook?" },
+  { id:"planner", label:"Meal Planner" },
+  { id:"random", label:"Surprise Me" }
+];
+
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = TABS.map(t =>
+    `<button class="tabbtn ${t.id===currentTab?'active':''}" data-tab="${t.id}">${t.label}</button>`
+  ).join("");
+  document.querySelectorAll(".tabbtn").forEach(btn => {
+    btn.addEventListener("click", () => { currentTab = btn.dataset.tab; renderTabs(); renderMain(); });
+  });
+}
+
+function renderMain(){
+  const main = document.getElementById("main");
+  if (currentTab === "vault") renderVault(main);
+  else if (currentTab === "match") renderMatch(main);
+  else if (currentTab === "planner") renderPlanner(main);
+  else renderRandom(main);
+}
+
+/* ---------------- Recipe card + modal ---------------- */
+/* ---------------- Category icons ---------------- */
+const ICONS = {
+  "Breakfast": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 30 C9 30 6 35 8 39 C5 43 9 48 15 46 C18 49 26 48 27 43 C33 43 35 36 30 33 C31 28 24 25 20 29 C18 27 16 27 15 30 Z" fill="#fff"/>
+    <circle cx="17" cy="37" r="4.7" fill="currentColor" stroke="none"/>
+    <path d="M36 31 q4 -3 8 0 q4 3 8 0 q4 -3 8 0"/>
+    <path d="M36 39 q4 -3 8 0 q4 3 8 0 q4 -3 8 0"/>
+  </svg>`,
+  "Lunch": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 31 C12 21 52 21 52 31 Z" fill="#fff"/>
+    <path d="M11 33.5 q4 3 8 0 q4 3 8 0 q4 3 8 0 q4 3 8 0 q4 3 8 0"/>
+    <path d="M12 38 L52 38"/>
+    <path d="M12 41 C12 49 52 49 52 41 Z" fill="#fff"/>
+  </svg>`,
+  "Dinner": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="33" r="15" fill="#fff"/>
+    <circle cx="32" cy="33" r="10.5"/>
+    <path d="M9 19 L9 28"/>
+    <path d="M13 19 L13 28"/>
+    <path d="M17 19 L17 28"/>
+    <path d="M9 28 Q13 32 17 28"/>
+    <path d="M13 30 L13 48"/>
+    <path d="M51 19 C47 21 47 30 51 32 Z" fill="#fff"/>
+    <path d="M51 32 L51 48"/>
+  </svg>`,
+  "Snack": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8" y="40" width="48" height="8" rx="3.5" fill="#fff"/>
+    <path d="M12 40 L25 40 L12 30 Z" fill="#fff"/>
+    <circle cx="16.5" cy="36" r="1.1" stroke="none" fill="currentColor"/>
+    <circle cx="30.5" cy="31" r="2.1"/>
+    <circle cx="35.5" cy="31" r="2.1"/>
+    <circle cx="28" cy="35" r="2.1"/>
+    <circle cx="33" cy="35" r="2.1"/>
+    <circle cx="38" cy="35" r="2.1"/>
+    <circle cx="48" cy="34" r="5.5" fill="#fff"/>
+    <circle cx="46" cy="33" r="0.9" stroke="none" fill="currentColor"/>
+    <circle cx="50" cy="35" r="0.9" stroke="none" fill="currentColor"/>
+  </svg>`,
+  "Dessert": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 25 Q12 18 32 18 Q52 18 52 25 L52 40 Q52 44 47 44 L17 44 Q12 44 12 40 Z" fill="#fff"/>
+    <path d="M12 25 q4 3 8 0 q4 3 8 0 q4 3 8 0 q4 3 8 0 q4 3 8 0"/>
+    <path d="M27 20 L33 40 L39 20 Z" fill="#e7ece1"/>
+    <path d="M12 35 L27 35"/>
+    <path d="M39 35 L52 35"/>
+    <circle cx="20" cy="14" r="2.7" fill="currentColor" stroke="none"/>
+    <path d="M20 11.5 Q22.5 8.5 19.5 7.5"/>
+  </svg>`,
+  "Baked Goods": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 43 Q9 33 20 30 Q24 21 32 24 Q40 21 44 30 Q55 33 56 43 Q50 40 44 41 Q38 42 32 41 Q26 42 20 41 Q14 40 8 43 Z" fill="#fff"/>
+    <path d="M18.5 31 Q17.5 37 20.5 41"/>
+    <path d="M26 27 Q25 35 27 41"/>
+    <path d="M32 25 Q32 34 32 41.5"/>
+    <path d="M40 27 Q41 35 38.5 41"/>
+    <path d="M46.5 31 Q49 37 44.5 41"/>
+  </svg>`
+};
+function iconFor(mealType){ return ICONS[mealType] || ICONS["Dinner"]; }
+
+function cardHTML(r){
+  const total = (Number(r.PrepTime)||0) + (Number(r.CookTime)||0);
+  const metaBits = [];
+  if (total > 0) metaBits.push(total + " min");
+  if (r.MainProtein) metaBits.push(r.MainProtein);
+  return `
+    <button type="button" class="rcard" data-id="${esc(r._id)}">
+      <div class="rcard-image">${r.ImageURL ? `<img src="${esc(r.ImageURL)}" alt="" />` : iconFor(r.MealType)}</div>
+      <div class="rcard-body">
+        <div class="rcard-cuisine">${esc(r.Cuisine)||"Uncategorised"}</div>
+        <h3 class="rcard-title">${esc(r.Name)||"Untitled recipe"}</h3>
+        ${metaBits.length ? `<div class="rcard-meta">${metaBits.map(esc).join(" · ")}</div>` : ""}
+      </div>
+    </button>`;
+}
+
+function openModal(id){
+  const r = RECIPES.find(x => x._id === id);
+  if (!r) return;
+  const ingredients = splitSemis(r.Ingredients);
+  const steps = splitPipes(r.Instructions);
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <button class="modal-close" aria-label="Close">&times;</button>
+      <div class="modal-cuisine">${esc(r.Cuisine)}${r.DishType ? " · " + esc(r.DishType) : ""}</div>
+      <h2>${esc(r.Name)}</h2>
+      <div class="modal-meta">${(Number(r.PrepTime)||Number(r.CookTime)) ? `${(Number(r.PrepTime)||0)+(Number(r.CookTime)||0)} min (${r.PrepTime||0} prep / ${r.CookTime||0} cook)` : ""}${r.TimeNote ? (((Number(r.PrepTime)||Number(r.CookTime)) ? " · " : "") + esc(r.TimeNote)) : ""}</div>
+
+      <h4>Ingredients</h4>
+      <ul class="ingredient-list">${ingredients.length ? ingredients.map(i=>`<li>${esc(i)}</li>`).join("") : '<li class="muted">No ingredients listed.</li>'}</ul>
+
+      <h4>Instructions</h4>
+      <ol class="steps-list">${steps.length ? steps.map(s=>`<li>${esc(s)}</li>`).join("") : '<li class="muted">No instructions added yet.</li>'}</ol>
+
+      ${r.Notes ? `<h4>Notes</h4><p class="muted">${esc(r.Notes)}</p>` : ""}
+
+      <h4>Source</h4>
+      <p class="muted">${esc(r.SourceType)}${r.DateAdded ? " · added " + fmtDate(r.DateAdded) : ""}</p>
+      ${r.SourceURL ? `<a class="source-link" href="${esc(r.SourceURL)}" target="_blank" rel="noopener noreferrer">Open original source ↗</a>` : ""}
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
+}
+
+function attachCardHandlers(container){
+  container.querySelectorAll(".rcard").forEach(card => card.addEventListener("click", () => openModal(card.dataset.id)));
+}
+
+/* ---------------- Vault ---------------- */
+let vaultState = { search:"", cuisine:"", protein:"", dishType:"", mealType:"" };
+
+function renderVault(main){
+  const s = vaultState;
+  let list = RECIPES.filter(r => {
+    if (s.cuisine && r.Cuisine !== s.cuisine) return false;
+    if (s.protein && r.MainProtein !== s.protein) return false;
+    if (s.dishType && r.DishType !== s.dishType) return false;
+    if (s.mealType && r.MealType !== s.mealType) return false;
+    if (s.search) {
+      const hay = [r.Name, r.Ingredients, r.Cuisine, r.DishType].join(" ").toLowerCase();
+      if (!hay.includes(s.search.toLowerCase())) return false;
+    }
+    return true;
+  }).sort((a,b)=> (a.Name||"").localeCompare(b.Name||""));
+
+  const opts = (arr, val) => arr.map(c => `<option value="${esc(c)}" ${val===c?"selected":""}>${esc(c)}</option>`).join("");
+
+  main.innerHTML = `
+    <div class="toolbar">
+      <input class="search-input" id="v-search" placeholder="Search by name or ingredient..." value="${esc(s.search)}" />
+    </div>
+    <div class="filter-rail">
+      <select class="filter-select" id="v-cuisine"><option value="">Any cuisine</option>${opts(CUISINES, s.cuisine)}</select>
+      <select class="filter-select" id="v-protein"><option value="">Any protein</option>${opts(PROTEINS, s.protein)}</select>
+      <select class="filter-select" id="v-dish"><option value="">Any dish type</option>${opts(DISH_TYPES, s.dishType)}</select>
+      <select class="filter-select" id="v-meal"><option value="">Any meal</option>${opts(MEAL_TYPES, s.mealType)}</select>
+    </div>
+    <p class="result-count">${list.length} recipe${list.length===1?"":"s"}</p>
+    ${list.length===0
+      ? `<div class="empty-state"><div class="empty-mark">◆</div><h3>No recipes match yet</h3><p>Try clearing a filter.</p></div>`
+      : `<div class="rgrid">${list.map(cardHTML).join("")}</div>`}
+  `;
+  attachCardHandlers(main);
+  const bind = (id, key, ev) => document.getElementById(id).addEventListener(ev, e => { s[key]=e.target.value; renderVault(main); });
+  bind("v-search","search","input"); bind("v-cuisine","cuisine","change");
+  bind("v-protein","protein","change"); bind("v-dish","dishType","change"); bind("v-meal","mealType","change");
+}
+
+/* ---------------- Ingredient match ---------------- */
+let haveIngredients = [];
+
+function renderMatch(main){
+  const results = RECIPES.map(r => {
+    const ing = splitSemis(r.Ingredients).map(i=>i.toLowerCase());
+    const matched = haveIngredients.filter(h => ing.some(i => i.includes(h)));
+    return { r, matched: matched.length };
+  }).filter(x=>x.matched>0).sort((a,b)=>b.matched-a.matched);
+
+  main.innerHTML = `
+    <div class="section-intro"><h2>What can I cook right now?</h2><p class="muted">Add what's in your kitchen — matching recipes will appear below.</p></div>
+    <div class="toolbar">
+      <input class="search-input" id="m-input" placeholder="e.g. flour, then press Enter" />
+      <button class="btn btn-primary btn-sm" id="m-add">Add</button>
+    </div>
+    <div class="chip-row" style="margin-bottom:20px;">
+      ${haveIngredients.map(h=>`<span class="chip chip-active" data-h="${esc(h)}">${esc(h)} ✕</span>`).join("") || '<span class="muted">No ingredients added yet.</span>'}
+    </div>
+    ${haveIngredients.length===0 ? "" : results.length===0
+      ? `<div class="empty-state"><div class="empty-mark">◆</div><h3>Nothing matches yet</h3><p>Try adding more ingredients.</p></div>`
+      : `<div class="rgrid">${results.map(({r,matched})=>`<div>${cardHTML(r)}<div class="match-note">${matched} ingredient(s) matched</div></div>`).join("")}</div>`}
+  `;
+  attachCardHandlers(main);
+  const input = document.getElementById("m-input");
+  const addFn = () => { const v=input.value.trim().toLowerCase(); if(v && !haveIngredients.includes(v)) haveIngredients.push(v); input.value=""; renderMatch(main); };
+  document.getElementById("m-add").addEventListener("click", addFn);
+  input.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); addFn(); } });
+  main.querySelectorAll("[data-h]").forEach(chip => chip.addEventListener("click", () => { haveIngredients = haveIngredients.filter(h=>h!==chip.dataset.h); renderMatch(main); }));
+}
+
+/* ---------------- Planner ---------------- */
+function renderPlanner(main){
+  main.innerHTML = `
+    <div class="section-intro"><h2>This week's dinners</h2><p class="muted">Set by the family cook in the shared MealPlan sheet.</p></div>
+    <div class="planner-grid">
+      ${DAYS.map(day => {
+        const name = MEALPLAN[day];
+        const r = RECIPES.find(x => x.Name === name);
+        return `<div class="day-card">
+          <div class="day-name">${day}</div>
+          ${r ? `<div class="muted">${esc(r.Name)}</div>` : `<div class="muted">— nothing planned —</div>`}
+        </div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+/* ---------------- Random picker ---------------- */
+let randomState = { filterType:"any", filterValue:"", displayName:"", result:null };
+let spinTimer = null;
+
+function poolFor(){
+  const s = randomState;
+  return RECIPES.filter(r => {
+    if (s.filterType==="protein") return s.filterValue ? r.MainProtein===s.filterValue : true;
+    if (s.filterType==="dishType") return s.filterValue ? r.DishType===s.filterValue : true;
+    return true;
+  });
+}
+
+function renderRandom(main){
+  const s = randomState;
+  main.innerHTML = `
+    <div class="section-intro"><h2>Can't decide? Let the vault choose.</h2></div>
+    <div class="random-filters">
+      <select class="filter-select" id="r-type">
+        <option value="any">Any recipe</option>
+        <option value="protein">By protein…</option>
+        <option value="dishType">By dish type…</option>
+      </select>
+      ${s.filterType==="protein" ? `<select class="filter-select" id="r-value"><option value="">Any protein</option>${PROTEINS.map(p=>`<option ${s.filterValue===p?'selected':''}>${p}</option>`).join("")}</select>` : ""}
+      ${s.filterType==="dishType" ? `<select class="filter-select" id="r-value"><option value="">Any dish type</option>${DISH_TYPES.map(p=>`<option ${s.filterValue===p?'selected':''}>${p}</option>`).join("")}</select>` : ""}
+      <button class="btn btn-primary" id="r-spin">Surprise me</button>
+    </div>
+    <div class="random-stage">
+      ${s.displayName ? `<div class="random-name">${esc(s.displayName)}</div>` : `<div class="muted">Your pick will appear here.</div>`}
+      ${s.result ? `<button class="btn btn-ghost" id="r-open">Open recipe</button>` : ""}
+    </div>
+  `;
+  document.getElementById("r-type").addEventListener("change", e => { s.filterType=e.target.value; s.filterValue=""; renderRandom(main); });
+  const valSel = document.getElementById("r-value");
+  if (valSel) valSel.addEventListener("change", e => { s.filterValue=e.target.value; });
+  document.getElementById("r-spin").addEventListener("click", () => {
+    const pool = poolFor();
+    if (!pool.length) { s.displayName="No recipes match this filter yet."; s.result=null; renderRandom(main); return; }
+    let ticks=0;
+    clearInterval(spinTimer);
+    spinTimer = setInterval(() => {
+      const pick = pool[Math.floor(Math.random()*pool.length)];
+      s.displayName = pick.Name;
+      document.querySelector(".random-name").textContent = pick.Name;
+      ticks++;
+      if (ticks>12) {
+        clearInterval(spinTimer);
+        const final = pool[Math.floor(Math.random()*pool.length)];
+        s.displayName = final.Name; s.result = final;
+        renderRandom(main);
+      }
+    }, 70);
+  });
+  const openBtn = document.getElementById("r-open");
+  if (openBtn) openBtn.addEventListener("click", () => openModal(s.result._id));
+}
+
+/* ---------------- Data loading ---------------- */
+function loadCSV(url){
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, { download:true, header:true, skipEmptyLines:true, complete: res => resolve(res.data), error: reject });
+  });
+}
+
+async function init(){
+  renderTabs();
+  if (!USE_LIVE_SHEET) {
+    RECIPES = SEED_RECIPES.filter(r => r.Name && r.Name.trim()).map((r,i) => ({ ...r, _id: "r"+i }));
+    renderMain();
+    return;
+  }
+  try {
+    const rows = await loadCSV(CONFIG.RECIPES_CSV_URL);
+    RECIPES = rows.filter(r => r.Name && r.Name.trim()).map((r,i) => ({ ...r, _id: "r"+i }));
+  } catch(e) { console.error("Failed to load Recipes sheet", e); RECIPES = []; }
+  try {
+    if (CONFIG.MEALPLAN_CSV_URL) {
+      const rows = await loadCSV(CONFIG.MEALPLAN_CSV_URL);
+      MEALPLAN = {};
+      rows.forEach(r => { if (r.Day) MEALPLAN[r.Day.trim()] = (r.RecipeName||"").trim(); });
+    }
+  } catch(e) { console.error("Failed to load MealPlan sheet", e); }
+  renderMain();
+}
+
+init();
+</script>
+</body>
+</html>
