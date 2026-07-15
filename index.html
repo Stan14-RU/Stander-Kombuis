@@ -94,7 +94,7 @@
   .btn:disabled { opacity:0.5; cursor:not-allowed; }
 
   .rgrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap:14px; }
-  .rcard { text-align:left; background: var(--card); border-radius:20px; padding:0; cursor:pointer; overflow:hidden; box-shadow: 0 4px 16px rgba(58,58,50,0.07); border:none; }
+  .rcard { text-align:left; background: var(--card); border-radius:20px; padding:0; cursor:pointer; overflow:hidden; box-shadow: 0 4px 16px rgba(58,58,50,0.07); border:none; appearance:none; -webkit-appearance:none; -moz-appearance:none; outline:none; display:block; width:100%; margin:0; }
   .rcard:hover { box-shadow: 0 6px 20px rgba(58,58,50,0.12); }
   .rcard-image { height: 110px; background: var(--icon-panel); display:flex; align-items:center; justify-content:center; color: var(--icon-stroke); }
   .rcard-image img { width:100%; height:100%; object-fit:cover; }
@@ -300,7 +300,13 @@ const ICONS = {
     <circle cx="39" cy="41" r="2.2"/>
   </svg>`
 };
-function iconFor(mealType){ return ICONS[mealType] || ICONS["Dinner"]; }
+function normalizeKey(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," "); }
+const ICON_LOOKUP = {};
+Object.keys(ICONS).forEach(k => { ICON_LOOKUP[normalizeKey(k)] = k; });
+function iconFor(mealType){
+  const key = ICON_LOOKUP[normalizeKey(mealType)];
+  return ICONS[key] || ICONS["Dinner"];
+}
 
 function cardHTML(r){
   const total = (Number(r.PrepTime)||0) + (Number(r.CookTime)||0);
