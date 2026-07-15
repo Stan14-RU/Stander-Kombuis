@@ -19,12 +19,13 @@
   1. Make a Google Sheet called "Stander Kombuis" with two tabs:
 
      TAB 1 — "Recipes", header row exactly:
-     Name | SourceURL | SourceType | ImageURL | DateAdded | Cuisine |
-     DishType | MealType | MainProtein | PrepTime | CookTime | TimeNote |
-     Ingredients | Instructions | Notes
+     Name | SourceURL | SourceType | Cuisine | DishType | MealType |
+     MainProtein | PrepTime | CookTime | TimeNote | Ingredients |
+     Instructions | Notes
 
      - MealType must be one of: Breakfast, Lunch, Dinner, Snack, Dessert,
-       Baked Goods — each one shows a matching category icon on the tile.
+       Baked Goods, Sauces, Pickles & Preserves — each shows a matching
+       category icon on the tile.
      - PrepTime / CookTime: plain numbers, in minutes (shown on the tile
        as a combined total, e.g. "25 min")
      - Ingredients: separate items with a semicolon, e.g.
@@ -33,6 +34,10 @@
        "Melt the butter into the milk.|Combine everything in a bowl.|..."
      - TimeNote is just free text shown on the recipe page, e.g.
        "Ready in about 45 minutes (30 min resting)"
+
+     Tip: turn SourceType, Cuisine, DishType, MealType, and MainProtein
+     into dropdown columns using Google Sheets' Data > Data validation,
+     so you just click a cell and pick a value instead of typing it.
 
      TAB 2 — "MealPlan", header row exactly:
      Day | RecipeName
@@ -162,8 +167,6 @@ const SEED_RECIPES = [
     Name: "Easy Soft Flatbread (No Yeast)",
     SourceURL: "https://www.recipetineats.com/easy-soft-flatbread-yeast/",
     SourceType: "Website",
-    ImageURL: "",
-    DateAdded: "2026-07-14",
     Cuisine: "Greek",
     DishType: "Bread",
     MealType: "Baked Goods",
@@ -171,16 +174,31 @@ const SEED_RECIPES = [
     PrepTime: 15,
     CookTime: 10,
     TimeNote: "About 45 minutes in total, including 30 minutes resting",
-    Ingredients: "2 cups plain flour, plus a little extra for dusting; 1/2 tsp salt; 3½ tbsp (50g) unsalted butter; 3/4 cup milk",
+    Ingredients: "300g plain flour, plus a little extra for dusting; 3g salt (about 1/2 tsp); 50g unsalted butter; 180ml milk",
     Instructions: "Gently melt the butter into the milk on the stove or in the microwave.|Combine the flour, salt, and the warm milk mixture in a bowl.|Turn out onto a floured surface and knead for a couple of minutes until smooth — it only needs a light knead. Add a little extra flour if it feels sticky.|Wrap the dough and rest at room temperature for about 30 minutes.|Divide into 6 pieces, roll each into a ball, then roll out into rounds about 20cm across and 2-3mm thick.|Heat a non-stick pan over high heat with no oil.|Cook one flatbread at a time for about 1-1.5 minutes until it puffs up with golden patches underneath, then flip and cook the other side for 45 seconds to a minute.|Stack the cooked flatbreads under a tea towel as you go — the trapped steam keeps them soft.|Optional: brush with a little melted butter or olive oil before serving.",
     Notes: "Trial recipe — added to test the new design."
+  },
+  {
+    Name: "Quick Pickled Red Onions",
+    SourceURL: "https://www.pathculture.com/food-recipes/how-to-make-quick-pickled-red-onions/",
+    SourceType: "Website",
+    Cuisine: "Other",
+    DishType: "Other",
+    MealType: "Sauces, Pickles & Preserves",
+    MainProtein: "Vegetarian",
+    PrepTime: 10,
+    CookTime: 5,
+    TimeNote: "Ready in 30 min, best after a few hours or overnight in the fridge",
+    Ingredients: "2 medium red onions, peeled; 240ml apple cider vinegar (or white vinegar for a more neutral flavor); 240ml filtered water; 10ml sea salt or kosher salt; 15ml sugar (cane, coconut, or brown); optional: lime slices, peppercorns, garlic, fresh herbs, mustard or fennel seeds, red pepper flakes, or sliced hot peppers",
+    Instructions: "Peel the onions and slice very thinly, about 0.3-0.6 cm thick, using a sharp knife or mandoline — thinner slices soften faster and take on more flavor.|In a saucepan, combine the vinegar, water, salt, and sugar, plus any spices or garlic you're using. Bring to a boil, stirring to dissolve, then let it boil gently for about 2 minutes.|Pack the sliced onions into a heatproof glass jar. Pour the hot brine over them so they're fully submerged, tucking in any optional herbs, peppers, or spices. Press down gently to keep everything under the liquid.|Let cool at room temperature for 1-2 hours, then seal and refrigerate. They'll turn bright pink and be ready in as little as 30 minutes, though the flavor is best after several hours or overnight.",
+    Notes: ""
   }
 ];
 
 const CUISINES = ["Italian","Greek","Chinese","Mexican","Indian","Thai","Japanese","Middle Eastern","American","South African","Other"];
 const PROTEINS = ["Chicken","Beef","Pork","Fish","Seafood","Vegetarian","Vegan","Egg","Lamb","Other"];
 const DISH_TYPES = ["Pasta","Dumplings","Rice Dish","Stir Fry","Soup","Curry","Salad","Sandwich","Bake","Bowl","Bread","Other"];
-const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Snack","Dessert","Baked Goods"];
+const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Snack","Dessert","Baked Goods","Sauces, Pickles & Preserves"];
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
 function esc(s){ return (s||"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -271,6 +289,15 @@ const ICONS = {
     <path d="M32 25 Q32 34 32 41.5"/>
     <path d="M40 27 Q41 35 38.5 41"/>
     <path d="M46.5 31 Q49 37 44.5 41"/>
+  </svg>`,
+  "Sauces, Pickles & Preserves": `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 15 L42 15 Q43 15 43 16.5 L43 21 Q43 22 42 22 L22 22 Q21 22 21 21 L21 16.5 Q21 15 22 15 Z" fill="#fff"/>
+    <path d="M23 22 L23 26 Q17 28 17 35 L17 50 Q17 53 20 53 L44 53 Q47 53 47 50 L47 35 Q47 28 41 26 L41 22" fill="#fff"/>
+    <path d="M17 33 L47 33"/>
+    <circle cx="27" cy="42" r="2.2"/>
+    <circle cx="35" cy="45" r="2.2"/>
+    <circle cx="33" cy="38" r="2.2"/>
+    <circle cx="39" cy="41" r="2.2"/>
   </svg>`
 };
 function iconFor(mealType){ return ICONS[mealType] || ICONS["Dinner"]; }
@@ -282,7 +309,7 @@ function cardHTML(r){
   if (r.MainProtein) metaBits.push(r.MainProtein);
   return `
     <button type="button" class="rcard" data-id="${esc(r._id)}">
-      <div class="rcard-image">${r.ImageURL ? `<img src="${esc(r.ImageURL)}" alt="" />` : iconFor(r.MealType)}</div>
+      <div class="rcard-image">${iconFor(r.MealType)}</div>
       <div class="rcard-body">
         <div class="rcard-cuisine">${esc(r.Cuisine)||"Uncategorised"}</div>
         <h3 class="rcard-title">${esc(r.Name)||"Untitled recipe"}</h3>
@@ -314,7 +341,7 @@ function openModal(id){
       ${r.Notes ? `<h4>Notes</h4><p class="muted">${esc(r.Notes)}</p>` : ""}
 
       <h4>Source</h4>
-      <p class="muted">${esc(r.SourceType)}${r.DateAdded ? " · added " + fmtDate(r.DateAdded) : ""}</p>
+      <p class="muted">${esc(r.SourceType)}</p>
       ${r.SourceURL ? `<a class="source-link" href="${esc(r.SourceURL)}" target="_blank" rel="noopener noreferrer">Open original source ↗</a>` : ""}
     </div>`;
   document.body.appendChild(overlay);
